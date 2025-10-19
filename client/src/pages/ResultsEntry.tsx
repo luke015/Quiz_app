@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { quizApi, playerApi, resultsApi } from "../services/api";
-import type { Quiz, Player } from "../types";
+import type { Quiz, Player, BulkResultEntry } from "../types";
 
 function ResultsEntry() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -15,6 +15,7 @@ function ResultsEntry() {
   const [success, setSuccess] = useState(false);
   const [entryMode, setEntryMode] = useState<"individual" | "total">("total");
   const [totalScore, setTotalScore] = useState(0);
+  const [bulkScores, setBulkScores] = useState<Record<string, number>>({});
 
   useEffect(() => {
     loadData();
@@ -27,6 +28,7 @@ function ResultsEntry() {
       setSelectedQuiz(null);
       setScores({});
       setTotalScore(0);
+      setBulkScores({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedQuizId]);
@@ -77,11 +79,22 @@ function ResultsEntry() {
     }));
   };
 
+  const handleBulkScoreChange = (playerId: string, value: string) => {
+    const numValue = parseInt(value) || 0;
+    const maxTotal = calculateMaxTotal();
+    const clampedValue = Math.max(0, Math.min(numValue, maxTotal));
+
+    setBulkScores((prev) => ({
+      ...prev,
+      [playerId]: clampedValue,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedQuizId || !selectedPlayerId) {
-      setError("Please select both a quiz and a player");
+    if (!selectedQuizId) {
+      setError("Please select a quiz");
       return;
     }
 
@@ -91,51 +104,81 @@ function ResultsEntry() {
     }
 
     try {
-      let questionResults;
+      // Bulk mode - when no player is selected
+      if (!selectedPlayerId) {
+        const entries: BulkResultEntry[] = Object.keys(bulkScores)
+          .filter((playerId) => bulkScores[playerId] > 0)
+          .map((playerId) => ({
+            playerId,
+            score: bulkScores[playerId],
+          }));
 
-      if (entryMode === "total") {
-        // In total mode, distribute points evenly across questions
-        const numQuestions = selectedQuiz.questions.length;
-        const pointsPerQuestion = Math.floor(totalScore / numQuestions);
-        const remainder = totalScore % numQuestions;
-
-        questionResults = selectedQuiz.questions.map((q, index) => ({
-          questionId: q.id,
-          // Distribute remainder to first questions
-          pointsAwarded: index < remainder ? pointsPerQuestion + 1 : pointsPerQuestion,
-        }));
-      } else {
-        // Individual mode - use scores from individual inputs
-        questionResults = Object.keys(scores).map((questionId) => ({
-          questionId,
-          pointsAwarded: scores[questionId],
-        }));
-      }
-
-      await resultsApi.save({
-        quizId: selectedQuizId,
-        playerId: selectedPlayerId,
-        questionResults,
-      });
-
-      setSuccess(true);
-      setError(null);
-
-      // Reset only player selection and scores after 2 seconds, keep quiz selected
-      setTimeout(() => {
-        setSelectedPlayerId("");
-        setScores({});
-        setTotalScore(0);
-        setSuccess(false);
-        // Re-initialize scores for the selected quiz
-        if (selectedQuiz) {
-          const initialScores: Record<string, number> = {};
-          selectedQuiz.questions.forEach((q) => {
-            initialScores[q.id] = 0;
-          });
-          setScores(initialScores);
+        if (entries.length === 0) {
+          setError("Please enter scores for at least one player");
+          return;
         }
-      }, 2000);
+
+        await resultsApi.saveBulk({
+          quizId: selectedQuizId,
+          entries,
+        });
+
+        setSuccess(true);
+        setError(null);
+
+        // Reset bulk scores after 2 seconds
+        setTimeout(() => {
+          setBulkScores({});
+          setSuccess(false);
+        }, 2000);
+      } else {
+        // Individual player mode
+        let questionResults;
+
+        if (entryMode === "total") {
+          // In total mode, distribute points evenly across questions
+          const numQuestions = selectedQuiz.questions.length;
+          const pointsPerQuestion = Math.floor(totalScore / numQuestions);
+          const remainder = totalScore % numQuestions;
+
+          questionResults = selectedQuiz.questions.map((q, index) => ({
+            questionId: q.id,
+            // Distribute remainder to first questions
+            pointsAwarded: index < remainder ? pointsPerQuestion + 1 : pointsPerQuestion,
+          }));
+        } else {
+          // Individual mode - use scores from individual inputs
+          questionResults = Object.keys(scores).map((questionId) => ({
+            questionId,
+            pointsAwarded: scores[questionId],
+          }));
+        }
+
+        await resultsApi.save({
+          quizId: selectedQuizId,
+          playerId: selectedPlayerId,
+          questionResults,
+        });
+
+        setSuccess(true);
+        setError(null);
+
+        // Reset only player selection and scores after 2 seconds, keep quiz selected
+        setTimeout(() => {
+          setSelectedPlayerId("");
+          setScores({});
+          setTotalScore(0);
+          setSuccess(false);
+          // Re-initialize scores for the selected quiz
+          if (selectedQuiz) {
+            const initialScores: Record<string, number> = {};
+            selectedQuiz.questions.forEach((q) => {
+              initialScores[q.id] = 0;
+            });
+            setScores(initialScores);
+          }
+        }, 2000);
+      }
     } catch (err: any) {
       setError(err.message);
       setSuccess(false);
@@ -199,24 +242,30 @@ function ResultsEntry() {
 
             {/* Player Selection */}
             <div>
-              <label className="block text-lg font-medium text-gray-700 mb-2">Select Player *</label>
+              <label className="block text-lg font-medium text-gray-700 mb-2">
+                Select Player {selectedQuizId && "(Leave empty for bulk entry)"}
+              </label>
               <select
                 value={selectedPlayerId}
                 onChange={(e) => setSelectedPlayerId(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg"
-                required
               >
-                <option value="">-- Select a player --</option>
+                <option value="">-- Select a player or leave empty for bulk entry --</option>
                 {players.map((player) => (
                   <option key={player.id} value={player.id}>
                     {player.name}
                   </option>
                 ))}
               </select>
+              {selectedQuizId && !selectedPlayerId && (
+                <p className="mt-2 text-sm text-blue-600 font-medium">
+                  💡 Bulk Entry Mode: Enter scores for multiple players at once
+                </p>
+              )}
             </div>
 
-            {/* Score Entry Mode Toggle */}
-            {selectedQuiz && selectedQuiz.questions.length > 0 && (
+            {/* Score Entry Mode Toggle - Only show for individual player mode */}
+            {selectedQuiz && selectedQuiz.questions.length > 0 && selectedPlayerId && (
               <div className="mb-6">
                 <label className="block text-lg font-medium text-gray-700 mb-3">Entry Mode</label>
                 <div className="flex gap-4">
@@ -249,7 +298,51 @@ function ResultsEntry() {
             {/* Score Entry */}
             {selectedQuiz && selectedQuiz.questions.length > 0 && (
               <div>
-                {entryMode === "individual" ? (
+                {!selectedPlayerId ? (
+                  // Bulk Entry Mode - Show all players with score inputs
+                  <>
+                    <h2 className="text-2xl font-semibold mb-4">Bulk Entry - Enter Scores for Multiple Players</h2>
+                    <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg mb-4">
+                      <p className="text-gray-700 mb-2">
+                        Enter total scores for each player. Maximum possible: <span className="font-bold">{calculateMaxTotal()}</span> points
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Leave score at 0 to skip a player. Only players with scores greater than 0 will be saved.
+                      </p>
+                    </div>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {players.map((player) => (
+                        <div key={player.id} className="bg-white border-2 border-gray-200 p-4 rounded-lg hover:border-blue-300 transition-colors">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="font-semibold text-lg text-gray-800">{player.name}</div>
+                            </div>
+                            <div className="w-40">
+                              <label className="block text-sm text-gray-600 mb-1">Total Score</label>
+                              <input
+                                type="number"
+                                min="0"
+                                max={calculateMaxTotal()}
+                                value={bulkScores[player.id] || 0}
+                                onChange={(e) => handleBulkScoreChange(player.id, e.target.value)}
+                                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-lg font-semibold"
+                              />
+                            </div>
+                            <div className="text-sm text-gray-500 w-20 text-right">
+                              / {calculateMaxTotal()}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Summary */}
+                    <div className="mt-6 bg-blue-50 border-2 border-blue-200 p-4 rounded-lg">
+                      <div className="text-lg font-semibold text-gray-800">
+                        Players with scores: {Object.values(bulkScores).filter((score) => score > 0).length} / {players.length}
+                      </div>
+                    </div>
+                  </>
+                ) : entryMode === "individual" ? (
                   <>
                     <h2 className="text-2xl font-semibold mb-4">Enter Scores by Question</h2>
                     <div className="space-y-4">

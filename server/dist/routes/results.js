@@ -5,6 +5,7 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 const RESULTS_FILENAME = 'results.json';
 const PLAYERS_FILENAME = 'players.json';
+const QUIZZES_FILENAME = 'quizzes.json';
 // Public routes - Leaderboards and individual results
 // GET leaderboard
 router.get('/leaderboard', async (_req, res) => {
@@ -145,6 +146,64 @@ router.post('/', authenticateToken, async (req, res) => {
     }
     catch (_error) {
         res.status(500).json({ error: 'Failed to save result' });
+    }
+});
+// POST bulk results - create/update results for multiple players at once
+router.post('/bulk', authenticateToken, async (req, res) => {
+    try {
+        const { quizId, entries } = req.body;
+        if (!quizId || !entries || !Array.isArray(entries)) {
+            return res.status(400).json({ error: 'quizId and entries array are required' });
+        }
+        // Load quiz to get questions
+        const quizzes = await readJSONFile(QUIZZES_FILENAME);
+        const quiz = quizzes.find((q) => q.id === quizId);
+        if (!quiz) {
+            return res.status(404).json({ error: 'Quiz not found' });
+        }
+        const results = await readJSONFile(RESULTS_FILENAME);
+        const savedResults = [];
+        // Process each entry
+        for (const entry of entries) {
+            const { playerId, score } = entry;
+            if (!playerId || score === undefined || score === null) {
+                continue; // Skip invalid entries
+            }
+            // Distribute score evenly across questions
+            const numQuestions = quiz.questions.length;
+            const pointsPerQuestion = Math.floor(score / numQuestions);
+            const remainder = score % numQuestions;
+            const questionResults = quiz.questions.map((q, index) => ({
+                questionId: q.id,
+                // Distribute remainder to first questions
+                pointsAwarded: index < remainder ? pointsPerQuestion + 1 : pointsPerQuestion,
+            }));
+            // Check if result already exists for this quiz and player
+            const existingIndex = results.findIndex((r) => r.quizId === quizId && r.playerId === playerId);
+            const result = {
+                id: existingIndex !== -1 ? results[existingIndex].id : uuidv4(),
+                quizId,
+                playerId,
+                questionResults,
+                totalScore: score,
+                completedAt: new Date().toISOString(),
+            };
+            if (existingIndex !== -1) {
+                results[existingIndex] = result;
+            }
+            else {
+                results.push(result);
+            }
+            savedResults.push(result);
+        }
+        await writeJSONFile(RESULTS_FILENAME, results);
+        res.status(201).json({
+            message: `Successfully saved ${savedResults.length} result(s)`,
+            results: savedResults
+        });
+    }
+    catch (_error) {
+        res.status(500).json({ error: 'Failed to save bulk results' });
     }
 });
 // DELETE result

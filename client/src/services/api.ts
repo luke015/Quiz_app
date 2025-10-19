@@ -1,4 +1,4 @@
-import type { Quiz, Player, Result, LeaderboardEntry, UploadResponse } from "../types";
+import type { Quiz, Player, Result, LeaderboardEntry, UploadResponse, BulkResultsSubmission } from "../types";
 
 const API_BASE = "/api";
 
@@ -104,6 +104,11 @@ export const resultsApi = {
     apiCall<Result>(`${API_BASE}/results`, {
       method: "POST",
       body: JSON.stringify(result),
+    }),
+  saveBulk: (bulkResults: BulkResultsSubmission) =>
+    apiCall<{ message: string; results: Result[] }>(`${API_BASE}/results/bulk`, {
+      method: "POST",
+      body: JSON.stringify(bulkResults),
     }),
   delete: (id: string) =>
     apiCall<{ message: string }>(`${API_BASE}/results/${id}`, {

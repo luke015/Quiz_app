@@ -42,3 +42,13 @@ export interface LeaderboardEntry {
   playerName: string;
   totalPoints: number;
 }
+
+export interface BulkResultEntry {
+  playerId: string;
+  score: number;
+}
+
+export interface BulkResultsSubmission {
+  quizId: string;
+  entries: BulkResultEntry[];
+}

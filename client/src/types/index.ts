@@ -49,3 +49,13 @@ export interface UploadResponse {
   mimetype: string;
   size: number;
 }
+
+export interface BulkResultEntry {
+  playerId: string;
+  score: number;
+}
+
+export interface BulkResultsSubmission {
+  quizId: string;
+  entries: BulkResultEntry[];
+}
