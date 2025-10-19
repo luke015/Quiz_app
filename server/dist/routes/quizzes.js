@@ -1,13 +1,34 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { readJSONFile, writeJSONFile } from '../utils/fileManager.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { sanitizeQuiz, sanitizeQuizzes } from '../utils/quizSanitizer.js';
+import { sessionManager } from '../utils/sessionManager.js';
 const router = express.Router();
 const FILENAME = 'quizzes.json';
+// Helper function to check if request is authenticated
+const isAuthenticated = async (req) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) {
+        return false;
+    }
+    try {
+        return await sessionManager.verifyToken(token);
+    }
+    catch {
+        return false;
+    }
+};
+// Public routes - GET endpoints (with answers stripped for non-authenticated users)
 // GET all quizzes
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
     try {
         const quizzes = await readJSONFile(FILENAME);
-        res.json(quizzes);
+        const authenticated = await isAuthenticated(req);
+        // Return quizzes without answers for unauthenticated users
+        const responseQuizzes = authenticated ? quizzes : sanitizeQuizzes(quizzes);
+        res.json(responseQuizzes);
     }
     catch (_error) {
         res.status(500).json({ error: 'Failed to read quizzes' });
@@ -21,14 +42,18 @@ router.get('/:id', async (req, res) => {
         if (!quiz) {
             return res.status(404).json({ error: 'Quiz not found' });
         }
-        res.json(quiz);
+        const authenticated = await isAuthenticated(req);
+        // Return quiz without answers for unauthenticated users
+        const responseQuiz = authenticated ? quiz : sanitizeQuiz(quiz);
+        res.json(responseQuiz);
     }
     catch (_error) {
         res.status(500).json({ error: 'Failed to read quiz' });
     }
 });
+// Protected routes - require authentication
 // POST create quiz
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
     try {
         const { title, description } = req.body;
         if (!title || title.trim() === '') {
@@ -51,7 +76,7 @@ router.post('/', async (req, res) => {
     }
 });
 // PUT update quiz
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
     try {
         const { title, description } = req.body;
         if (!title || title.trim() === '') {
@@ -75,7 +100,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 // DELETE quiz
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
     try {
         const quizzes = await readJSONFile(FILENAME);
         const filteredQuizzes = quizzes.filter((q) => q.id !== req.params.id);
@@ -90,7 +115,7 @@ router.delete('/:id', async (req, res) => {
     }
 });
 // POST add question to quiz
-router.post('/:id/questions', async (req, res) => {
+router.post('/:id/questions', authenticateToken, async (req, res) => {
     try {
         const { questionText, type, mediaType, mediaPath, maxPoints, options, correctAnswer } = req.body;
         if (!questionText || questionText.trim() === '') {
@@ -126,7 +151,7 @@ router.post('/:id/questions', async (req, res) => {
     }
 });
 // PUT update question
-router.put('/:quizId/questions/:questionId', async (req, res) => {
+router.put('/:quizId/questions/:questionId', authenticateToken, async (req, res) => {
     try {
         const { questionText, type, mediaType, mediaPath, maxPoints, options, correctAnswer } = req.body;
         if (!questionText || questionText.trim() === '') {
@@ -165,7 +190,7 @@ router.put('/:quizId/questions/:questionId', async (req, res) => {
     }
 });
 // DELETE question
-router.delete('/:quizId/questions/:questionId', async (req, res) => {
+router.delete('/:quizId/questions/:questionId', authenticateToken, async (req, res) => {
     try {
         const quizzes = await readJSONFile(FILENAME);
         const quiz = quizzes.find((q) => q.id === req.params.quizId);

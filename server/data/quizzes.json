@@ -2,7 +2,7 @@
   {
     "id": "491e001f-b30d-4bca-8950-d90941d00a6d",
     "title": "Test 1",
-    "description": "",
+    "description": "Rok = 1 bod, název = 2 body",
     "createdAt": "2025-10-18T22:24:05.148Z",
     "questions": [
       {
@@ -59,24 +59,6 @@
           "Test D"
         ],
         "correctAnswer": "Test C"
-      }
-    ]
-  },
-  {
-    "id": "dd5d1a39-868e-405f-8284-7879c097dd92",
-    "title": "Test 2",
-    "description": "",
-    "createdAt": "2025-10-19T17:44:20.210Z",
-    "questions": [
-      {
-        "id": "ec964b9a-e33c-48ab-b65e-2ecd14cc2e81",
-        "type": "text",
-        "questionText": "Test Q",
-        "mediaType": "none",
-        "mediaPath": null,
-        "maxPoints": 10,
-        "options": [],
-        "correctAnswer": "25"
       }
     ]
   }

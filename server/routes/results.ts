@@ -2,85 +2,13 @@ import express, { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { readJSONFile, writeJSONFile } from '../utils/fileManager.js';
 import { Result, Player, LeaderboardEntry } from '../types/index.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 const RESULTS_FILENAME = 'results.json';
 const PLAYERS_FILENAME = 'players.json';
 
-// GET all results
-router.get('/', async (_req: Request, res: Response) => {
-  try {
-    const results = await readJSONFile<Result>(RESULTS_FILENAME);
-    res.json(results);
-  } catch (_error) {
-    res.status(500).json({ error: 'Failed to read results' });
-  }
-});
-
-// GET results for a specific quiz
-router.get('/quiz/:quizId', async (req: Request, res: Response) => {
-  try {
-    const results = await readJSONFile<Result>(RESULTS_FILENAME);
-    const quizResults = results.filter((r) => r.quizId === req.params.quizId);
-    res.json(quizResults);
-  } catch (_error) {
-    res.status(500).json({ error: 'Failed to read results' });
-  }
-});
-
-// GET results for a specific player
-router.get('/player/:playerId', async (req: Request, res: Response) => {
-  try {
-    const results = await readJSONFile<Result>(RESULTS_FILENAME);
-    const playerResults = results.filter((r) => r.playerId === req.params.playerId);
-    res.json(playerResults);
-  } catch (_error) {
-    res.status(500).json({ error: 'Failed to read results' });
-  }
-});
-
-// POST create/update result
-router.post('/', async (req: Request, res: Response) => {
-  try {
-    const { quizId, playerId, questionResults } = req.body;
-
-    if (!quizId || !playerId || !questionResults) {
-      return res.status(400).json({ error: 'quizId, playerId, and questionResults are required' });
-    }
-
-    const results = await readJSONFile<Result>(RESULTS_FILENAME);
-
-    // Calculate total score
-    const totalScore = questionResults.reduce(
-      (sum: number, qr: { pointsAwarded?: number }) => sum + (qr.pointsAwarded || 0),
-      0
-    );
-
-    // Check if result already exists for this quiz and player
-    const existingIndex = results.findIndex((r) => r.quizId === quizId && r.playerId === playerId);
-
-    const result: Result = {
-      id: existingIndex !== -1 ? results[existingIndex].id : uuidv4(),
-      quizId,
-      playerId,
-      questionResults,
-      totalScore,
-      completedAt: new Date().toISOString(),
-    };
-
-    if (existingIndex !== -1) {
-      results[existingIndex] = result;
-    } else {
-      results.push(result);
-    }
-
-    await writeJSONFile<Result>(RESULTS_FILENAME, results);
-    res.status(201).json(result);
-  } catch (_error) {
-    res.status(500).json({ error: 'Failed to save result' });
-  }
-});
-
+// Public routes - Leaderboards and individual results
 // GET leaderboard
 router.get('/leaderboard', async (_req: Request, res: Response) => {
   try {
@@ -168,8 +96,84 @@ router.get('/leaderboard/ranking', async (_req: Request, res: Response) => {
   }
 });
 
+// GET results for a specific player (for individual results page)
+router.get('/player/:playerId', async (req: Request, res: Response) => {
+  try {
+    const results = await readJSONFile<Result>(RESULTS_FILENAME);
+    const playerResults = results.filter((r) => r.playerId === req.params.playerId);
+    res.json(playerResults);
+  } catch (_error) {
+    res.status(500).json({ error: 'Failed to read results' });
+  }
+});
+
+// GET all results (public - needed for individual results page)
+router.get('/', async (_req: Request, res: Response) => {
+  try {
+    const results = await readJSONFile<Result>(RESULTS_FILENAME);
+    res.json(results);
+  } catch (_error) {
+    res.status(500).json({ error: 'Failed to read results' });
+  }
+});
+
+// Protected routes - require authentication
+
+// GET results for a specific quiz
+router.get('/quiz/:quizId', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const results = await readJSONFile<Result>(RESULTS_FILENAME);
+    const quizResults = results.filter((r) => r.quizId === req.params.quizId);
+    res.json(quizResults);
+  } catch (_error) {
+    res.status(500).json({ error: 'Failed to read results' });
+  }
+});
+
+// POST create/update result
+router.post('/', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { quizId, playerId, questionResults } = req.body;
+
+    if (!quizId || !playerId || !questionResults) {
+      return res.status(400).json({ error: 'quizId, playerId, and questionResults are required' });
+    }
+
+    const results = await readJSONFile<Result>(RESULTS_FILENAME);
+
+    // Calculate total score
+    const totalScore = questionResults.reduce(
+      (sum: number, qr: { pointsAwarded?: number }) => sum + (qr.pointsAwarded || 0),
+      0
+    );
+
+    // Check if result already exists for this quiz and player
+    const existingIndex = results.findIndex((r) => r.quizId === quizId && r.playerId === playerId);
+
+    const result: Result = {
+      id: existingIndex !== -1 ? results[existingIndex].id : uuidv4(),
+      quizId,
+      playerId,
+      questionResults,
+      totalScore,
+      completedAt: new Date().toISOString(),
+    };
+
+    if (existingIndex !== -1) {
+      results[existingIndex] = result;
+    } else {
+      results.push(result);
+    }
+
+    await writeJSONFile<Result>(RESULTS_FILENAME, results);
+    res.status(201).json(result);
+  } catch (_error) {
+    res.status(500).json({ error: 'Failed to save result' });
+  }
+});
+
 // DELETE result
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const results = await readJSONFile<Result>(RESULTS_FILENAME);
     const filteredResults = results.filter((r) => r.id !== req.params.id);

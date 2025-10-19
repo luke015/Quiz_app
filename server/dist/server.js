@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -6,6 +7,8 @@ import quizzesRouter from './routes/quizzes.js';
 import playersRouter from './routes/players.js';
 import resultsRouter from './routes/results.js';
 import uploadRouter from './routes/upload.js';
+import authRouter from './routes/auth.js';
+import { authenticateToken } from './middleware/auth.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
@@ -14,11 +17,13 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-// Routes
-app.use('/api/quizzes', quizzesRouter);
-app.use('/api/players', playersRouter);
-app.use('/api/results', resultsRouter);
-app.use('/api/upload', uploadRouter);
+// Public routes
+app.use('/api/auth', authRouter);
+app.use('/api/results', resultsRouter); // Has mixed public/protected routes
+app.use('/api/quizzes', quizzesRouter); // Has mixed public/protected routes (GET is public)
+app.use('/api/players', playersRouter); // Has mixed public/protected routes (GET is public)
+// Protected routes (require authentication)
+app.use('/api/upload', authenticateToken, uploadRouter);
 // Health check
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });

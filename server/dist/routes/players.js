@@ -1,8 +1,10 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { readJSONFile, writeJSONFile } from '../utils/fileManager.js';
+import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 const FILENAME = 'players.json';
+// Public routes - GET endpoints
 // GET all players
 router.get('/', async (_req, res) => {
     try {
@@ -27,8 +29,9 @@ router.get('/:id', async (req, res) => {
         res.status(500).json({ error: 'Failed to read player' });
     }
 });
+// Protected routes - require authentication
 // POST create player
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
     try {
         const { name } = req.body;
         if (!name || name.trim() === '') {
@@ -49,7 +52,7 @@ router.post('/', async (req, res) => {
     }
 });
 // PUT update player
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
     try {
         const { name } = req.body;
         if (!name || name.trim() === '') {
@@ -72,7 +75,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 // DELETE player
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
     try {
         const players = await readJSONFile(FILENAME);
         const filteredPlayers = players.filter((p) => p.id !== req.params.id);

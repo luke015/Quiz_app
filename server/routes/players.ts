@@ -2,10 +2,12 @@ import express, { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { readJSONFile, writeJSONFile } from '../utils/fileManager.js';
 import { Player } from '../types/index.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 const FILENAME = 'players.json';
 
+// Public routes - GET endpoints
 // GET all players
 router.get('/', async (_req: Request, res: Response) => {
   try {
@@ -32,8 +34,9 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Protected routes - require authentication
 // POST create player
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { name } = req.body;
 
@@ -59,7 +62,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // PUT update player
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { name } = req.body;
 
@@ -87,7 +90,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE player
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const players = await readJSONFile<Player>(FILENAME);
     const filteredPlayers = players.filter((p) => p.id !== req.params.id);

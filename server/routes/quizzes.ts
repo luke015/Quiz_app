@@ -2,15 +2,39 @@ import express, { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { readJSONFile, writeJSONFile } from '../utils/fileManager.js';
 import { Quiz, Question } from '../types/index.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { sanitizeQuiz, sanitizeQuizzes } from '../utils/quizSanitizer.js';
+import { sessionManager } from '../utils/sessionManager.js';
 
 const router = express.Router();
 const FILENAME = 'quizzes.json';
 
+// Helper function to check if request is authenticated
+const isAuthenticated = async (req: Request): Promise<boolean> => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    return false;
+  }
+  
+  try {
+    return await sessionManager.verifyToken(token);
+  } catch {
+    return false;
+  }
+};
+
+// Public routes - GET endpoints (with answers stripped for non-authenticated users)
 // GET all quizzes
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const quizzes = await readJSONFile<Quiz>(FILENAME);
-    res.json(quizzes);
+    const authenticated = await isAuthenticated(req);
+    
+    // Return quizzes without answers for unauthenticated users
+    const responseQuizzes = authenticated ? quizzes : sanitizeQuizzes(quizzes);
+    res.json(responseQuizzes);
   } catch (_error) {
     res.status(500).json({ error: 'Failed to read quizzes' });
   }
@@ -26,14 +50,19 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
-    res.json(quiz);
+    const authenticated = await isAuthenticated(req);
+    
+    // Return quiz without answers for unauthenticated users
+    const responseQuiz = authenticated ? quiz : sanitizeQuiz(quiz);
+    res.json(responseQuiz);
   } catch (_error) {
     res.status(500).json({ error: 'Failed to read quiz' });
   }
 });
 
+// Protected routes - require authentication
 // POST create quiz
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { title, description } = req.body;
 
@@ -61,7 +90,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // PUT update quiz
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { title, description } = req.body;
 
@@ -90,7 +119,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE quiz
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const quizzes = await readJSONFile<Quiz>(FILENAME);
     const filteredQuizzes = quizzes.filter((q) => q.id !== req.params.id);
@@ -107,7 +136,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // POST add question to quiz
-router.post('/:id/questions', async (req: Request, res: Response) => {
+router.post('/:id/questions', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { questionText, type, mediaType, mediaPath, maxPoints, options, correctAnswer } = req.body;
 
@@ -151,7 +180,7 @@ router.post('/:id/questions', async (req: Request, res: Response) => {
 });
 
 // PUT update question
-router.put('/:quizId/questions/:questionId', async (req: Request, res: Response) => {
+router.put('/:quizId/questions/:questionId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { questionText, type, mediaType, mediaPath, maxPoints, options, correctAnswer } = req.body;
 
@@ -199,7 +228,7 @@ router.put('/:quizId/questions/:questionId', async (req: Request, res: Response)
 });
 
 // DELETE question
-router.delete('/:quizId/questions/:questionId', async (req: Request, res: Response) => {
+router.delete('/:quizId/questions/:questionId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const quizzes = await readJSONFile<Quiz>(FILENAME);
     const quiz = quizzes.find((q) => q.id === req.params.quizId);

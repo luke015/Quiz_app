@@ -1,0 +1,46 @@
+QUICK START - AUTHENTICATION SETUP
+===================================
+
+You MUST create a .env file in the server directory before running the application.
+
+Step 1: Create server/.env file
+--------------------------------
+Navigate to the server directory and create a file named ".env"
+
+Add this content:
+PORT=3000
+ADMIN_PASSWORD=your_password_here
+
+Replace "your_password_here" with your desired admin password.
+
+Step 2: Start the servers
+--------------------------
+Terminal 1 (Backend):
+  cd server
+  npm run dev
+
+Terminal 2 (Frontend):
+  cd client
+  npm run dev
+
+Step 3: Access the application
+-------------------------------
+Open browser: http://localhost:5173
+
+Login: Use the password you set in ADMIN_PASSWORD
+
+**Important**: There is NO default password. You MUST create the .env file
+or login will not work.
+
+PUBLIC ACCESS (No login required):
+- Leaderboard page
+- Individual Results page
+
+ADMIN ACCESS (Requires login):
+- Manage Quizzes
+- Manage Players
+- Enter Results
+- Quiz Player modes
+
+See AUTHENTICATION.md for detailed documentation.
+
