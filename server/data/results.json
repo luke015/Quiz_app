@@ -1,0 +1,31 @@
+[
+  {
+    "id": "ec8acaf0-6872-4a42-a207-5ebbd006be71",
+    "quizId": "491e001f-b30d-4bca-8950-d90941d00a6d",
+    "playerId": "37a10394-4981-474d-87cd-1582c25037db",
+    "questionResults": [
+      {
+        "questionId": "a44a9796-b4ff-4189-809b-2c300d1b92b5",
+        "pointsAwarded": 9
+      },
+      {
+        "questionId": "8d91c8d2-04c7-4ad4-bdc1-82650cf20754",
+        "pointsAwarded": 9
+      },
+      {
+        "questionId": "12bc8b61-9486-4477-880a-dcaf386857ee",
+        "pointsAwarded": 9
+      },
+      {
+        "questionId": "6011890d-caa8-48c2-9864-2739fb7d5a79",
+        "pointsAwarded": 8
+      },
+      {
+        "questionId": "2aa07b47-7a8d-4eb4-bde5-28fc961ff72c",
+        "pointsAwarded": 8
+      }
+    ],
+    "totalScore": 43,
+    "completedAt": "2025-10-18T23:33:15.794Z"
+  }
+]

@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+client/dist/
+
+# Environment variables
+.env
+.env.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Uploads (optional - uncomment if you don't want to track uploaded files)
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Plan files
+.cursor/
+
