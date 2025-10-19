@@ -10,6 +10,7 @@ function IndividualResults() {
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [results, setResults] = useState<Result[]>([]);
   const [filteredResult, setFilteredResult] = useState<Result | null>(null);
+  const [filteredResults, setFilteredResults] = useState<Result[]>([]);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,9 +21,18 @@ function IndividualResults() {
 
   useEffect(() => {
     if (selectedQuizId && selectedPlayerId) {
+      // Both selected: Show detailed breakdown
       filterResults();
+    } else if (selectedPlayerId) {
+      // Only player selected: Show all quizzes for this player
+      filterByPlayer();
+    } else if (selectedQuizId) {
+      // Only quiz selected: Show all players for this quiz
+      filterByQuiz();
     } else {
+      // Neither selected: Clear results
       setFilteredResult(null);
+      setFilteredResults([]);
       setSelectedQuiz(null);
     }
   }, [selectedQuizId, selectedPlayerId, results]);
@@ -54,6 +64,7 @@ function IndividualResults() {
 
     if (result) {
       setFilteredResult(result);
+      setFilteredResults([]);
       // Load the full quiz details to show question texts
       try {
         const quiz = await quizApi.getById(selectedQuizId);
@@ -63,6 +74,31 @@ function IndividualResults() {
       }
     } else {
       setFilteredResult(null);
+      setFilteredResults([]);
+      setSelectedQuiz(null);
+    }
+  };
+
+  const filterByPlayer = () => {
+    // Show all results for the selected player
+    const playerResults = results.filter((r) => r.playerId === selectedPlayerId);
+    setFilteredResults(playerResults);
+    setFilteredResult(null);
+    setSelectedQuiz(null);
+  };
+
+  const filterByQuiz = async () => {
+    // Show all results for the selected quiz
+    const quizResults = results.filter((r) => r.quizId === selectedQuizId);
+    setFilteredResults(quizResults);
+    setFilteredResult(null);
+    
+    // Load quiz details to show quiz information
+    try {
+      const quiz = await quizApi.getById(selectedQuizId);
+      setSelectedQuiz(quiz);
+    } catch (err: any) {
+      setError(err.message);
       setSelectedQuiz(null);
     }
   };
@@ -154,8 +190,9 @@ function IndividualResults() {
         </div>
 
         {/* Results Display */}
-        {selectedPlayerId && selectedQuizId && (
+        {(selectedPlayerId || selectedQuizId) && (
           <div className="bg-white rounded-lg shadow-md p-6">
+            {/* Case 1: Both selected - Show detailed question breakdown */}
             {filteredResult && selectedQuiz ? (
               <div>
                 {/* Header */}
@@ -270,12 +307,251 @@ function IndividualResults() {
                   })}
                 </div>
               </div>
+            ) : filteredResults.length > 0 ? (
+              <div>
+                {/* Case 2: Only player selected - Show summary of all quizzes */}
+                {selectedPlayerId && !selectedQuizId && (
+                  <div>
+                    <div className="mb-6 pb-4 border-b-2 border-gray-200">
+                      <h2 className="text-3xl font-bold text-gray-800 mb-2">
+                        {getPlayerName(selectedPlayerId)}
+                      </h2>
+                      <p className="text-xl text-gray-600">All Quiz Results</p>
+                    </div>
+
+                    {/* Total Score Summary */}
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg mb-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-lg mb-1">Total Score Across All Quizzes</div>
+                          <div className="text-5xl font-bold">
+                            {filteredResults.reduce((sum, r) => sum + r.totalScore, 0)}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg mb-1">Quizzes Completed</div>
+                          <div className="text-5xl font-bold">{filteredResults.length}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quiz Results Table */}
+                    <h3 className="text-2xl font-semibold mb-4">Quiz Breakdown</h3>
+                    <div className="space-y-3">
+                      {filteredResults.map((result) => {
+                        const quiz = quizzes.find((q) => q.id === result.quizId);
+                        const maxScore = quiz
+                          ? quiz.questions.reduce((sum, q) => sum + q.maxPoints, 0)
+                          : result.totalScore;
+                        const percentage = maxScore > 0 ? (result.totalScore / maxScore) * 100 : 0;
+
+                        return (
+                          <div
+                            key={result.id}
+                            className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex-1">
+                                <h4 className="text-lg font-semibold text-gray-800 mb-1">
+                                  {getQuizTitle(result.quizId)}
+                                </h4>
+                                <p className="text-sm text-gray-600">
+                                  Completed: {new Date(result.completedAt).toLocaleString()}
+                                </p>
+                                {/* Progress Bar */}
+                                <div className="mt-3">
+                                  <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                                    <span>Score</span>
+                                    <span>
+                                      {result.totalScore} / {maxScore} ({Math.round(percentage)}%)
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-3">
+                                    <div
+                                      className={`h-3 rounded-full transition-all ${
+                                        percentage >= 80
+                                          ? "bg-green-500"
+                                          : percentage >= 50
+                                          ? "bg-yellow-500"
+                                          : "bg-red-500"
+                                      }`}
+                                      style={{ width: `${percentage}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div
+                                  className={`text-3xl font-bold mb-2 ${
+                                    percentage >= 80
+                                      ? "text-green-600"
+                                      : percentage >= 50
+                                      ? "text-yellow-600"
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  {result.totalScore}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setSelectedQuizId(result.quizId);
+                                    window.scrollTo({ top: 0, behavior: "smooth" });
+                                  }}
+                                  className="text-blue-500 hover:text-blue-700 font-medium text-sm underline"
+                                >
+                                  View Details
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Case 3: Only quiz selected - Show summary of all players */}
+                {selectedQuizId && !selectedPlayerId && (
+                  <div>
+                    <div className="mb-6 pb-4 border-b-2 border-gray-200">
+                      <h2 className="text-3xl font-bold text-gray-800 mb-2">
+                        {getQuizTitle(selectedQuizId)}
+                      </h2>
+                      <p className="text-xl text-gray-600">All Player Results</p>
+                    </div>
+
+                    {/* Quiz Info and Stats */}
+                    {selectedQuiz && (
+                      <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg mb-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-lg mb-1">Total Players</div>
+                            <div className="text-5xl font-bold">{filteredResults.length}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg mb-1">Average Score</div>
+                            <div className="text-5xl font-bold">
+                              {filteredResults.length > 0
+                                ? Math.round(
+                                    filteredResults.reduce((sum, r) => sum + r.totalScore, 0) /
+                                      filteredResults.length
+                                  )
+                                : 0}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg mb-1">Max Possible</div>
+                            <div className="text-5xl font-bold">
+                              {selectedQuiz.questions.reduce((sum, q) => sum + q.maxPoints, 0)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Player Results Table */}
+                    <h3 className="text-2xl font-semibold mb-4">Player Rankings</h3>
+                    <div className="space-y-3">
+                      {[...filteredResults]
+                        .sort((a, b) => b.totalScore - a.totalScore)
+                        .map((result, index) => {
+                          const maxScore = selectedQuiz
+                            ? selectedQuiz.questions.reduce((sum, q) => sum + q.maxPoints, 0)
+                            : result.totalScore;
+                          const percentage = maxScore > 0 ? (result.totalScore / maxScore) * 100 : 0;
+
+                          return (
+                            <div
+                              key={result.id}
+                              className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+                            >
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-4 flex-1">
+                                  {/* Rank Badge */}
+                                  <div
+                                    className={`flex items-center justify-center w-12 h-12 rounded-full font-bold text-xl ${
+                                      index === 0
+                                        ? "bg-yellow-500 text-white"
+                                        : index === 1
+                                        ? "bg-gray-300 text-gray-800"
+                                        : index === 2
+                                        ? "bg-orange-400 text-white"
+                                        : "bg-blue-100 text-blue-800"
+                                    }`}
+                                  >
+                                    {index + 1}
+                                  </div>
+                                  <div className="flex-1">
+                                    <h4 className="text-lg font-semibold text-gray-800 mb-1">
+                                      {getPlayerName(result.playerId)}
+                                    </h4>
+                                    <p className="text-sm text-gray-600">
+                                      Completed: {new Date(result.completedAt).toLocaleString()}
+                                    </p>
+                                    {/* Progress Bar */}
+                                    <div className="mt-3">
+                                      <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                                        <span>Score</span>
+                                        <span>
+                                          {result.totalScore} / {maxScore} ({Math.round(percentage)}%)
+                                        </span>
+                                      </div>
+                                      <div className="w-full bg-gray-200 rounded-full h-3">
+                                        <div
+                                          className={`h-3 rounded-full transition-all ${
+                                            percentage >= 80
+                                              ? "bg-green-500"
+                                              : percentage >= 50
+                                              ? "bg-yellow-500"
+                                              : "bg-red-500"
+                                          }`}
+                                          style={{ width: `${percentage}%` }}
+                                        ></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div
+                                    className={`text-3xl font-bold mb-2 ${
+                                      percentage >= 80
+                                        ? "text-green-600"
+                                        : percentage >= 50
+                                        ? "text-yellow-600"
+                                        : "text-red-600"
+                                    }`}
+                                  >
+                                    {result.totalScore}
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedPlayerId(result.playerId);
+                                      window.scrollTo({ top: 0, behavior: "smooth" });
+                                    }}
+                                    className="text-blue-500 hover:text-blue-700 font-medium text-sm underline"
+                                  >
+                                    View Details
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
+              /* No results found */
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🔍</div>
                 <p className="text-xl text-gray-600 mb-2">No results found</p>
                 <p className="text-gray-500">
-                  This player hasn't completed this quiz yet, or the results haven't been entered.
+                  {selectedPlayerId && selectedQuizId
+                    ? "This player hasn't completed this quiz yet, or the results haven't been entered."
+                    : selectedPlayerId
+                    ? "This player hasn't completed any quizzes yet."
+                    : "No players have completed this quiz yet."}
                 </p>
                 <Link
                   to="/results"
@@ -289,14 +565,19 @@ function IndividualResults() {
         )}
 
         {/* Instructions */}
-        {!selectedPlayerId || !selectedQuizId ? (
+        {!selectedPlayerId && !selectedQuizId && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
             <div className="text-4xl mb-3">👆</div>
-            <p className="text-lg text-gray-700">
-              Select a player and a quiz above to view detailed results
+            <p className="text-lg text-gray-700 mb-2">
+              Select a player or a quiz above to view results
             </p>
+            <div className="text-sm text-gray-600 mt-4 space-y-2">
+              <p>• Select a <strong>player</strong> to see all their quiz results</p>
+              <p>• Select a <strong>quiz</strong> to see all player results for that quiz</p>
+              <p>• Select <strong>both</strong> to see detailed question-by-question breakdown</p>
+            </div>
           </div>
-        ) : null}
+        )}
 
         {/* All Results Summary */}
         {results.length > 0 && (
