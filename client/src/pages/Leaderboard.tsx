@@ -1,30 +1,41 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { resultsApi } from "../services/api";
+import type { LeaderboardEntry } from "../types";
+
+type LeaderboardType = "points" | "ranking";
 
 function Leaderboard() {
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [activeTab, setActiveTab] = useState<LeaderboardType>("ranking");
+  const [pointsLeaderboard, setPointsLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [rankingLeaderboard, setRankingLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadLeaderboard();
+    loadLeaderboards();
   }, []);
 
-  const loadLeaderboard = async () => {
+  const loadLeaderboards = async () => {
     try {
       setLoading(true);
-      const data = await resultsApi.getLeaderboard();
-      setLeaderboard(data);
+      const [pointsData, rankingData] = await Promise.all([
+        resultsApi.getLeaderboard(),
+        resultsApi.getRankingLeaderboard(),
+      ]);
+      setPointsLeaderboard(pointsData);
+      setRankingLeaderboard(rankingData);
       setError(null);
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
-  const getMedalEmoji = (position) => {
+  const currentLeaderboard = activeTab === "points" ? pointsLeaderboard : rankingLeaderboard;
+
+  const getMedalEmoji = (position: number) => {
     switch (position) {
       case 0:
         return "🥇";
@@ -60,7 +71,31 @@ function Leaderboard() {
 
         {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
-        {leaderboard.length === 0 ? (
+        {/* Tabs */}
+        <div className="mb-6 flex gap-4 bg-white bg-opacity-10 backdrop-blur-sm p-2 rounded-2xl">
+          <button
+            onClick={() => setActiveTab("ranking")}
+            className={`flex-1 py-4 px-6 rounded-xl text-xl font-bold transition-all transform ${
+              activeTab === "ranking"
+                ? "bg-white text-orange-600 shadow-xl "
+                : "bg-transparent text-gray-900 hover:bg-white hover:bg-opacity-10"
+            }`}
+          >
+            🏅 Ranking Leaderboard
+          </button>
+          <button
+            onClick={() => setActiveTab("points")}
+            className={`flex-1 py-4 px-6 rounded-xl text-xl font-bold transition-all transform ${
+              activeTab === "points"
+                ? "bg-white text-orange-600 shadow-xl"
+                : "bg-transparent text-gray-900 hover:bg-white hover:bg-opacity-10"
+            }`}
+          >
+            📊 Points Leaderboard
+          </button>
+        </div>
+
+        {currentLeaderboard.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-2xl p-12 text-center">
             <div className="text-6xl mb-4">🎯</div>
             <p className="text-gray-600 text-2xl mb-6">No results yet. Start playing quizzes and entering scores!</p>
@@ -81,16 +116,25 @@ function Leaderboard() {
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Description */}
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6">
+              <p className="text-white text-lg text-center">
+                {activeTab === "points" 
+                  ? "Total points accumulated from all quizzes" 
+                  : "Rankings based on placement in each quiz (1st place = N points, 2nd = N-1 points, etc.)"}
+              </p>
+            </div>
+
             {/* Top 3 Podium */}
-            {leaderboard.length >= 3 && (
+            {currentLeaderboard.length >= 3 && (
               <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-8">
                 <div className="flex items-end justify-center gap-4 max-w-3xl mx-auto">
                   {/* Second Place */}
                   <div className="flex-1 text-center">
                     <div className="bg-white rounded-lg p-6 transform hover:scale-105 transition-transform">
                       <div className="text-6xl mb-2">🥈</div>
-                      <div className="text-2xl font-bold text-gray-800 mb-2">{leaderboard[1].playerName}</div>
-                      <div className="text-3xl font-bold text-purple-600">{leaderboard[1].totalPoints}</div>
+                      <div className="text-2xl font-bold text-gray-800 mb-2">{currentLeaderboard[1].playerName}</div>
+                      <div className="text-3xl font-bold text-purple-600">{currentLeaderboard[1].totalPoints}</div>
                       <div className="text-sm text-gray-600">points</div>
                     </div>
                   </div>
@@ -99,8 +143,8 @@ function Leaderboard() {
                   <div className="flex-1 text-center">
                     <div className="bg-yellow-100 border-4 border-yellow-400 rounded-lg p-8 transform hover:scale-105 transition-transform">
                       <div className="text-8xl mb-2">🥇</div>
-                      <div className="text-3xl font-bold text-gray-800 mb-2">{leaderboard[0].playerName}</div>
-                      <div className="text-5xl font-bold text-yellow-600">{leaderboard[0].totalPoints}</div>
+                      <div className="text-3xl font-bold text-gray-800 mb-2">{currentLeaderboard[0].playerName}</div>
+                      <div className="text-5xl font-bold text-yellow-600">{currentLeaderboard[0].totalPoints}</div>
                       <div className="text-lg text-gray-600">points</div>
                     </div>
                   </div>
@@ -109,8 +153,8 @@ function Leaderboard() {
                   <div className="flex-1 text-center">
                     <div className="bg-white rounded-lg p-6 transform hover:scale-105 transition-transform">
                       <div className="text-6xl mb-2">🥉</div>
-                      <div className="text-2xl font-bold text-gray-800 mb-2">{leaderboard[2].playerName}</div>
-                      <div className="text-3xl font-bold text-orange-600">{leaderboard[2].totalPoints}</div>
+                      <div className="text-2xl font-bold text-gray-800 mb-2">{currentLeaderboard[2].playerName}</div>
+                      <div className="text-3xl font-bold text-orange-600">{currentLeaderboard[2].totalPoints}</div>
                       <div className="text-sm text-gray-600">points</div>
                     </div>
                   </div>
@@ -122,7 +166,7 @@ function Leaderboard() {
             <div className="p-8">
               <h2 className="text-3xl font-bold text-gray-800 mb-6">Full Rankings</h2>
               <div className="space-y-3">
-                {leaderboard.map((entry, index) => (
+                {currentLeaderboard.map((entry, index) => (
                   <div
                     key={entry.playerId}
                     className={`flex items-center justify-between p-6 rounded-xl transition-all ${
@@ -152,10 +196,10 @@ function Leaderboard() {
         {/* Refresh Button */}
         <div className="mt-8 text-center">
           <button
-            onClick={loadLeaderboard}
+            onClick={loadLeaderboards}
             className="bg-white bg-opacity-20 backdrop-blur-sm text-gray-900 px-8 py-4 rounded-lg hover:bg-opacity-30 transition-colors text-xl font-semibold"
           >
-            🔄 Refresh Leaderboard
+            🔄 Refresh Leaderboards
           </button>
         </div>
       </div>

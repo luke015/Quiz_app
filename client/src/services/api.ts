@@ -89,6 +89,7 @@ export const resultsApi = {
       method: "DELETE",
     }),
   getLeaderboard: () => apiCall<LeaderboardEntry[]>(`${API_BASE}/results/leaderboard`),
+  getRankingLeaderboard: () => apiCall<LeaderboardEntry[]>(`${API_BASE}/results/leaderboard/ranking`),
 };
 
 // Upload API

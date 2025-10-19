@@ -116,6 +116,58 @@ router.get('/leaderboard', async (_req: Request, res: Response) => {
   }
 });
 
+// GET ranking-based leaderboard
+router.get('/leaderboard/ranking', async (_req: Request, res: Response) => {
+  try {
+    const results = await readJSONFile<Result>(RESULTS_FILENAME);
+    const players = await readJSONFile<Player>(PLAYERS_FILENAME);
+
+    // Group results by quiz
+    const resultsByQuiz: Record<string, Result[]> = {};
+    results.forEach((result) => {
+      if (!resultsByQuiz[result.quizId]) {
+        resultsByQuiz[result.quizId] = [];
+      }
+      resultsByQuiz[result.quizId].push(result);
+    });
+
+    // Calculate ranking points for each player
+    const playerRankingPoints: Record<string, number> = {};
+
+    Object.values(resultsByQuiz).forEach((quizResults) => {
+      // Sort players by score in descending order
+      const sortedResults = [...quizResults].sort((a, b) => b.totalScore - a.totalScore);
+      const numPlayers = sortedResults.length;
+
+      // Award points based on ranking
+      sortedResults.forEach((result, index) => {
+        const rankingPoints = numPlayers - index; // 1st place gets numPlayers points, 2nd gets numPlayers-1, etc.
+        if (!playerRankingPoints[result.playerId]) {
+          playerRankingPoints[result.playerId] = 0;
+        }
+        playerRankingPoints[result.playerId] += rankingPoints;
+      });
+    });
+
+    // Create leaderboard array with player names
+    const leaderboard: LeaderboardEntry[] = Object.keys(playerRankingPoints).map((playerId) => {
+      const player = players.find((p) => p.id === playerId);
+      return {
+        playerId,
+        playerName: player ? player.name : 'Unknown Player',
+        totalPoints: playerRankingPoints[playerId],
+      };
+    });
+
+    // Sort by total ranking points descending
+    leaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
+
+    res.json(leaderboard);
+  } catch (_error) {
+    res.status(500).json({ error: 'Failed to generate ranking leaderboard' });
+  }
+});
+
 // DELETE result
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
