@@ -6,27 +6,27 @@
     "questionResults": [
       {
         "questionId": "a44a9796-b4ff-4189-809b-2c300d1b92b5",
-        "pointsAwarded": 9
+        "pointsAwarded": 2
       },
       {
         "questionId": "8d91c8d2-04c7-4ad4-bdc1-82650cf20754",
-        "pointsAwarded": 9
+        "pointsAwarded": 1
       },
       {
         "questionId": "12bc8b61-9486-4477-880a-dcaf386857ee",
-        "pointsAwarded": 9
+        "pointsAwarded": 1
       },
       {
         "questionId": "6011890d-caa8-48c2-9864-2739fb7d5a79",
-        "pointsAwarded": 8
+        "pointsAwarded": 1
       },
       {
         "questionId": "2aa07b47-7a8d-4eb4-bde5-28fc961ff72c",
-        "pointsAwarded": 8
+        "pointsAwarded": 1
       }
     ],
-    "totalScore": 43,
-    "completedAt": "2025-10-18T23:33:15.794Z"
+    "totalScore": 6,
+    "completedAt": "2025-10-19T17:52:44.212Z"
   },
   {
     "id": "7348e757-baba-4158-8d5c-38a678ff2ab8",
@@ -35,11 +35,11 @@
     "questionResults": [
       {
         "questionId": "a44a9796-b4ff-4189-809b-2c300d1b92b5",
-        "pointsAwarded": 6
+        "pointsAwarded": 7
       },
       {
         "questionId": "8d91c8d2-04c7-4ad4-bdc1-82650cf20754",
-        "pointsAwarded": 6
+        "pointsAwarded": 7
       },
       {
         "questionId": "12bc8b61-9486-4477-880a-dcaf386857ee",
@@ -54,8 +54,8 @@
         "pointsAwarded": 6
       }
     ],
-    "totalScore": 30,
-    "completedAt": "2025-10-19T17:43:52.385Z"
+    "totalScore": 32,
+    "completedAt": "2025-10-19T17:55:41.440Z"
   },
   {
     "id": "454ffc5e-cadc-4497-8e75-37db1c2dd05f",

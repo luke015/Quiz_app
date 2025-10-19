@@ -13,7 +13,7 @@ function ResultsEntry() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [entryMode, setEntryMode] = useState<"individual" | "total">("individual");
+  const [entryMode, setEntryMode] = useState<"individual" | "total">("total");
   const [totalScore, setTotalScore] = useState(0);
 
   useEffect(() => {
@@ -121,14 +121,20 @@ function ResultsEntry() {
       setSuccess(true);
       setError(null);
 
-      // Reset form after 2 seconds
+      // Reset only player selection and scores after 2 seconds, keep quiz selected
       setTimeout(() => {
-        setSelectedQuizId("");
         setSelectedPlayerId("");
-        setSelectedQuiz(null);
         setScores({});
         setTotalScore(0);
         setSuccess(false);
+        // Re-initialize scores for the selected quiz
+        if (selectedQuiz) {
+          const initialScores: Record<string, number> = {};
+          selectedQuiz.questions.forEach((q) => {
+            initialScores[q.id] = 0;
+          });
+          setScores(initialScores);
+        }
       }, 2000);
     } catch (err: any) {
       setError(err.message);
