@@ -23,6 +23,15 @@ const apiCall = async <T>(url: string, options: RequestInit = {}): Promise<T> =>
     credentials: 'include', // Include cookies in requests
   });
 
+  // Check if authentication failed (401 Unauthorized)
+  if (response.status === 401) {
+    // Redirect to login page if not already there
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+    throw new Error("Authentication required");
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "Request failed" }));
     throw new Error(error.error || "Request failed");
@@ -118,6 +127,15 @@ export const uploadFile = async (file: File): Promise<UploadResponse> => {
     body: formData,
     credentials: 'include', // Include cookies in requests
   });
+
+  // Check if authentication failed (401 Unauthorized)
+  if (response.status === 401) {
+    // Redirect to login page if not already there
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+    throw new Error("Authentication required");
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "Upload failed" }));
