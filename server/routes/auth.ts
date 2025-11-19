@@ -20,8 +20,7 @@ router.post('/login', async (req: Request, res: Response) => {
       httpOnly: true, // Prevents JavaScript access
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       sameSite: 'strict', // CSRF protection
-      // maxAge: 24 * 60 * 60 * 1000 // 24 hours in milliseconds
-      maxAge: 60 * 1000 // 24 hours in milliseconds
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours in milliseconds
     });
 
     return res.json({ message: 'Login successful' });
