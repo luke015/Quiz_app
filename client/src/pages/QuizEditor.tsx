@@ -21,7 +21,7 @@ function QuizEditor() {
     type: "text",
     mediaType: "none",
     mediaPath: null,
-    maxPoints: 10,
+    maxPoints: 1,
     options: ["", "", "", ""],
     correctAnswer: "",
   });
@@ -143,7 +143,7 @@ function QuizEditor() {
       type: "text",
       mediaType: "none",
       mediaPath: null,
-      maxPoints: 10,
+      maxPoints: 1,
       options: ["", "", "", ""],
       correctAnswer: "",
     });

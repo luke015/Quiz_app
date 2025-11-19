@@ -68,14 +68,29 @@ router.get('/leaderboard/ranking', async (_req: Request, res: Response) => {
       const sortedResults = [...quizResults].sort((a, b) => b.totalScore - a.totalScore);
       const numPlayers = sortedResults.length;
 
-      // Award points based on ranking
-      sortedResults.forEach((result, index) => {
-        const rankingPoints = numPlayers - index; // 1st place gets numPlayers points, 2nd gets numPlayers-1, etc.
+      // Award points based on ranking, handling ties
+      let currentRank = 1;
+      for (let i = 0; i < sortedResults.length; i++) {
+        const result = sortedResults[i];
+        
+        // Check if this player has the same score as the previous player (tie)
+        if (i > 0 && sortedResults[i].totalScore === sortedResults[i - 1].totalScore) {
+          // Same score as previous player, use the same rank
+          // currentRank stays the same
+        } else {
+          // Different score, update rank to current position
+          currentRank = i + 1;
+        }
+        
+        // Calculate ranking points: numPlayers - rank + 1
+        // For example with 5 players: rank 1 gets 5 points, rank 2 gets 4 points, etc.
+        const rankingPoints = numPlayers - currentRank + 1;
+        
         if (!playerRankingPoints[result.playerId]) {
           playerRankingPoints[result.playerId] = 0;
         }
         playerRankingPoints[result.playerId] += rankingPoints;
-      });
+      }
     });
 
     // Create leaderboard array with player names

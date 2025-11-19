@@ -9,6 +9,7 @@ function QuizPlayer({ mode = "guessing" }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
     loadQuiz();
@@ -30,6 +31,22 @@ function QuizPlayer({ mode = "guessing" }) {
     return () => window.removeEventListener("keydown", handleKeyPress);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentQuestionIndex, quiz]);
+
+  // Timer effect - only runs in guessing mode
+  useEffect(() => {
+    if (mode !== "guessing") return;
+
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [mode]);
+
+  // Reset timer when question changes
+  useEffect(() => {
+    setElapsedSeconds(0);
+  }, [currentQuestionIndex]);
 
   const loadQuiz = async () => {
     try {
@@ -64,6 +81,12 @@ function QuizPlayer({ mode = "guessing" }) {
       document.exitFullscreen();
       setIsFullscreen(false);
     }
+  };
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
   if (loading) {
@@ -134,6 +157,11 @@ function QuizPlayer({ mode = "guessing" }) {
             Question {currentQuestionIndex + 1} of {quiz.questions.length}
           </div>
           <div className="text-xl text-gray-300 mt-2">Max Points: {currentQuestion.maxPoints}</div>
+          {!isAnswerMode && (
+            <div className="text-2xl font-mono font-bold mt-3 text-yellow-300">
+              ⏱️ {formatTime(elapsedSeconds)}
+            </div>
+          )}
         </div>
 
         {/* Main Content Area */}
@@ -156,14 +184,14 @@ function QuizPlayer({ mode = "guessing" }) {
                     />
                   )}
                   {currentQuestion.mediaType === "video" && (
-                    <video controls className="max-w-full max-h-[400px] rounded-lg shadow-2xl">
+                    <video key={currentQuestionIndex} controls className="max-w-full max-h-[400px] rounded-lg shadow-2xl">
                       <source src={currentQuestion.mediaPath} />
                       Your browser does not support video playback.
                     </video>
                   )}
                   {currentQuestion.mediaType === "audio" && (
                     <div className="w-full max-w-2xl">
-                      <audio controls className="w-full" controlsList="nodownload">
+                      <audio key={currentQuestionIndex} controls className="w-full" controlsList="nodownload">
                         <source src={currentQuestion.mediaPath} type={
                           currentQuestion.mediaPath?.endsWith('.mp3') ? 'audio/mpeg' :
                           currentQuestion.mediaPath?.endsWith('.wav') ? 'audio/wav' :

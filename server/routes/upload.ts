@@ -23,9 +23,9 @@ const storage = multer.diskStorage({
 // File filter
 const fileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
   // Allowed extensions
-  const allowedExtensions = /\.(jpeg|jpg|png|gif|webp|mp4|webm|avi|mov|mp3|wav|ogg|m4a|aac|flac)$/i;
+  const allowedExtensions = /\.(jpeg|jpg|png|gif|webp|mp4|webm|avi|mov|mp3|wav|ogg|m4a|aac|flac|m4v)$/i;
   const extname = allowedExtensions.test(file.originalname.toLowerCase());
-  
+
   // Allowed mimetypes
   const allowedMimetypes = [
     'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
