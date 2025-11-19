@@ -14,7 +14,17 @@ router.post('/login', async (req: Request, res: Response) => {
   try {
     // Create a new session with a hashed token
     const token = await sessionManager.createSession(password);
-    return res.json({ token, message: 'Login successful' });
+
+    // Set token as httpOnly cookie with 24 hour expiration
+    res.cookie('authToken', token, {
+      httpOnly: true, // Prevents JavaScript access
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: 'strict', // CSRF protection
+      // maxAge: 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+      maxAge: 60 * 1000 // 24 hours in milliseconds
+    });
+
+    return res.json({ message: 'Login successful' });
   } catch (error) {
     return res.status(401).json({ error: 'Invalid password' });
   }
@@ -22,8 +32,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
 // Verify token endpoint
 router.post('/verify', async (req: Request, res: Response) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = req.cookies.authToken;
 
   if (!token) {
     return res.status(401).json({ valid: false });
@@ -39,12 +48,18 @@ router.post('/verify', async (req: Request, res: Response) => {
 
 // Logout endpoint
 router.post('/logout', async (req: Request, res: Response) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = req.cookies.authToken;
 
   if (token) {
     await sessionManager.removeSession(token);
   }
+
+  // Clear the cookie
+  res.clearCookie('authToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  });
 
   return res.json({ message: 'Logged out successfully' });
 });

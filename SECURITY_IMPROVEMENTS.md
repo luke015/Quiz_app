@@ -21,6 +21,20 @@
 
 **Solution**: Implemented answer sanitization - quiz endpoints now check authentication status and strip `correctAnswer` fields for non-authenticated requests.
 
+### Issue 4: Tokens Stored in localStorage (XSS Vulnerability)
+**Problem**: Authentication tokens were stored in localStorage, which is vulnerable to XSS attacks:
+- Tokens accessible to any JavaScript code
+- XSS attacks can steal tokens
+- No automatic expiration on client side
+- Token persists even after backend expires it (causing auth state mismatch)
+
+**Solution**: Migrated to httpOnly cookies with proper security flags:
+- httpOnly flag prevents JavaScript access
+- SameSite=strict prevents CSRF attacks
+- Secure flag (production) ensures HTTPS-only transmission
+- Automatic expiration matching backend (24 hours)
+- Frontend automatically checks auth status on load
+
 ## New Security Architecture
 
 ### Before
@@ -33,7 +47,7 @@ Client                  Server
   |-- API(Bearer password) ->| (Compare plain password)
 ```
 
-### After
+### After (Current - Cookie-Based)
 ```
 Client                  Server
   |                       |
@@ -42,11 +56,13 @@ Client                  Server
   |                       | 2. Generate random token (32 bytes)
   |                       | 3. Hash token with bcrypt
   |                       | 4. Store hash in memory
-  |<-- Token=random ---- |
+  |                       | 5. Set httpOnly cookie
+  |<-- Cookie Set ------- |
   |                       |
-  |-- API(Bearer random) ->| 1. Compare with bcrypt
-  |                       | 2. Check expiration
-  |                       | 3. Allow/deny
+  |-- API (with cookie) ->| 1. Read token from cookie
+  |                       | 2. Compare with bcrypt
+  |                       | 3. Check expiration
+  |                       | 4. Allow/deny
 ```
 
 ## Security Features Implemented
@@ -79,8 +95,26 @@ Client                  Server
 
 ### 6. Password Protection
 - Admin password only sent once (during login)
-- Password never stored in client localStorage
+- Password never stored in client
 - Password never sent as bearer token
+
+### 7. httpOnly Cookie Storage
+- Tokens stored in httpOnly cookies (inaccessible to JavaScript)
+- Prevents XSS attacks from stealing tokens
+- Browser automatically includes cookie in requests
+- No manual token management required
+
+### 8. Cookie Security Flags
+- **httpOnly**: Prevents JavaScript access to token
+- **SameSite=strict**: Prevents CSRF attacks
+- **Secure** (production): HTTPS-only transmission
+- **maxAge**: 24-hour automatic expiration
+
+### 9. Frontend Auto-Expiration
+- Frontend checks auth status on load via API call
+- Detects expired tokens automatically
+- No auth state mismatch between frontend and backend
+- Automatic logout when cookie expires
 
 ## Technical Implementation
 
@@ -91,15 +125,19 @@ Client                  Server
 - `server/utils/quizSanitizer.ts` - Utility to strip answers from quiz data
 
 **Modified Files:**
-- `server/middleware/auth.ts` - Updated to verify hashed tokens
-- `server/routes/auth.ts` - Login now generates random tokens, added logout endpoint
+- `server/middleware/auth.ts` - Updated to verify hashed tokens and read from cookies
+- `server/routes/auth.ts` - Login now generates random tokens, sets httpOnly cookies, added logout endpoint
 - `server/routes/results.ts` - Made GET / public
 - `server/routes/quizzes.ts` - Added authentication check and answer sanitization
-- `client/src/contexts/AuthContext.tsx` - Added logout endpoint call
+- `server/server.ts` - Added cookie-parser middleware and CORS configuration for credentials
+- `client/src/contexts/AuthContext.tsx` - Removed localStorage, checks auth via API on mount
+- `client/src/services/api.ts` - Added credentials: 'include' to all API calls
 
 **Dependencies Added:**
 - `bcryptjs` - Industry-standard password hashing library
 - `@types/bcryptjs` - TypeScript definitions
+- `cookie-parser` - Express middleware for parsing cookies
+- `@types/cookie-parser` - TypeScript definitions for cookie-parser
 
 ### Session Manager Features
 
@@ -176,9 +214,11 @@ While much improved, consider these for production:
 4. Fetch quiz data without login → Should receive quizzes with empty `correctAnswer` fields
 
 ### Test Token Security
-1. Login and copy token from localStorage
-2. Token should be a 64-character hex string (not your password)
-3. Look at server memory (SessionManager) - stored version should be different (hashed)
+1. Login and open DevTools → Application → Cookies
+2. Find `authToken` cookie
+3. Token should be a 64-character hex string (not your password)
+4. Cookie should have httpOnly flag (not accessible via document.cookie)
+5. Look at server memory (SessionManager) - stored version should be different (hashed)
 
 ### Test Answer Protection
 1. Without login, fetch a quiz from API: `GET /api/quizzes/{id}`
@@ -192,11 +232,15 @@ While much improved, consider these for production:
 The authentication system is now significantly more secure:
 - ✅ Password no longer transmitted as bearer token
 - ✅ Tokens are hashed server-side
-- ✅ Sessions expire automatically
+- ✅ Sessions expire automatically on both backend and frontend
 - ✅ Server can invalidate sessions
 - ✅ Public endpoints work without authentication
 - ✅ Individual Results page accessible to everyone
 - ✅ Quiz answers protected - only visible to authenticated users
+- ✅ Tokens stored in httpOnly cookies - protected from XSS attacks
+- ✅ SameSite cookie flag - protected from CSRF attacks
+- ✅ Frontend automatically detects expired sessions
+- ✅ No auth state mismatch between frontend and backend
 
 This is suitable for small team/single admin use. For larger production deployment, consider the remaining attack vectors listed above.
 

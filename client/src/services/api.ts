@@ -2,14 +2,8 @@ import type { Quiz, Player, Result, LeaderboardEntry, UploadResponse, BulkResult
 
 const API_BASE = "/api";
 
-// Helper function to get auth token
-const getAuthToken = (): string | null => {
-  return localStorage.getItem("authToken");
-};
-
 // Helper function for making API calls
 const apiCall = async <T>(url: string, options: RequestInit = {}): Promise<T> => {
-  const token = getAuthToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -23,14 +17,10 @@ const apiCall = async <T>(url: string, options: RequestInit = {}): Promise<T> =>
     });
   }
 
-  // Add authorization header if token exists
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
   const response = await fetch(url, {
     ...options,
     headers,
+    credentials: 'include', // Include cookies in requests
   });
 
   if (!response.ok) {
@@ -120,19 +110,13 @@ export const resultsApi = {
 
 // Upload API
 export const uploadFile = async (file: File): Promise<UploadResponse> => {
-  const token = getAuthToken();
   const formData = new FormData();
   formData.append("file", file);
 
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
   const response = await fetch(`${API_BASE}/upload`, {
     method: "POST",
-    headers,
     body: formData,
+    credentials: 'include', // Include cookies in requests
   });
 
   if (!response.ok) {

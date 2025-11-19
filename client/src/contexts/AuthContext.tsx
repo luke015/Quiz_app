@@ -10,16 +10,32 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if token exists in localStorage on mount
-    const storedToken = localStorage.getItem("authToken");
-    if (storedToken) {
-      setToken(storedToken);
-      setIsAuthenticated(true);
-    }
+    // Check authentication status on mount by verifying cookie
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/verify", {
+          method: "POST",
+          credentials: 'include', // Include cookies
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsAuthenticated(data.valid);
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
   }, []);
 
   const login = async (password: string) => {
@@ -29,6 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: 'include', // Include cookies
         body: JSON.stringify({ password }),
       });
 
@@ -37,42 +54,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(error.error || "Login failed");
       }
 
-      const data = await response.json();
-      setToken(data.token);
       setIsAuthenticated(true);
-      localStorage.setItem("authToken", data.token);
     } catch (error) {
-      setToken(null);
       setIsAuthenticated(false);
-      localStorage.removeItem("authToken");
       throw error;
     }
   };
 
   const logout = async () => {
-    // Call logout endpoint to invalidate server-side session
-    if (token) {
-      try {
-        await fetch("/api/auth/logout", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-      } catch (error) {
-        // Ignore errors, we're logging out anyway
-        console.error("Logout error:", error);
-      }
+    // Call logout endpoint to invalidate server-side session and clear cookie
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: 'include', // Include cookies
+      });
+    } catch (error) {
+      // Ignore errors, we're logging out anyway
+      console.error("Logout error:", error);
     }
     
     // Clear local state
-    setToken(null);
     setIsAuthenticated(false);
-    localStorage.removeItem("authToken");
   };
 
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return null;
+  }
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, token, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, token: null, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

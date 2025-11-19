@@ -11,13 +11,12 @@ const FILENAME = 'quizzes.json';
 
 // Helper function to check if request is authenticated
 const isAuthenticated = async (req: Request): Promise<boolean> => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  
+  const token = req.cookies.authToken;
+
   if (!token) {
     return false;
   }
-  
+
   try {
     return await sessionManager.verifyToken(token);
   } catch {
@@ -31,7 +30,7 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const quizzes = await readJSONFile<Quiz>(FILENAME);
     const authenticated = await isAuthenticated(req);
-    
+
     // Return quizzes without answers for unauthenticated users
     const responseQuizzes = authenticated ? quizzes : sanitizeQuizzes(quizzes);
     res.json(responseQuizzes);
@@ -51,7 +50,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     const authenticated = await isAuthenticated(req);
-    
+
     // Return quiz without answers for unauthenticated users
     const responseQuiz = authenticated ? quiz : sanitizeQuiz(quiz);
     res.json(responseQuiz);

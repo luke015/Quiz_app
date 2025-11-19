@@ -56,10 +56,11 @@ This is optional as the client uses relative URLs by default.
    - A random 32-byte session token is generated
    - The token is hashed using bcrypt with salt (10 rounds)
    - The hashed token is stored in server memory
-   - The unhashed token is sent to the client
-   - Sessions expire after 24 hours
+   - The unhashed token is set as an httpOnly cookie on the client
+   - Sessions and cookies both expire after 24 hours
 3. **Token Verification**: On each protected request:
-   - The bearer token is compared against stored hashed tokens using bcrypt
+   - The token is read from the httpOnly cookie
+   - The cookie token is compared against stored hashed tokens using bcrypt
    - Expired sessions are automatically cleaned up
    - Invalid tokens are rejected with 403 error
 4. **Protected Endpoints**:
@@ -97,9 +98,10 @@ This is optional as the client uses relative URLs by default.
 
 1. **Login Page**: `/login` - Enter admin password
 2. **Protected Routes**: Automatically redirect to login if not authenticated
-3. **Token Storage**: Authentication token is stored in browser's localStorage
-4. **Auto-Login**: If a valid token exists, the user stays logged in across browser sessions
-5. **Logout**: Clear token and return to guest mode
+3. **Token Storage**: Authentication token is stored in httpOnly cookies (not accessible to JavaScript)
+4. **Auto-Login**: If a valid cookie exists and hasn't expired, the user stays logged in across browser sessions
+5. **Logout**: Clear cookie and return to guest mode
+6. **Cookie Expiration**: Cookies automatically expire after 24 hours, matching backend session duration
 
 ## Usage
 
@@ -125,6 +127,10 @@ This is optional as the client uses relative URLs by default.
 3. **Session Expiration**: Tokens automatically expire after 24 hours
 4. **Server-Side Sessions**: Sessions stored in memory, invalidated on logout
 5. **Password Protection**: Admin password never sent over the network after initial login
+6. **httpOnly Cookies**: Tokens stored in httpOnly cookies, preventing XSS attacks (JavaScript cannot access them)
+7. **SameSite Protection**: Cookies use SameSite=strict flag for CSRF protection
+8. **Secure Cookies**: In production, cookies are marked as secure (HTTPS only)
+9. **Automatic Expiration**: Frontend automatically logs out when cookie expires (24 hours)
 
 ## Security Notes
 
@@ -166,12 +172,14 @@ This is optional as the client uses relative URLs by default.
 ### "Authentication required" errors
 - Check that you're logged in
 - Try logging out and logging back in
-- Clear your browser's localStorage if issues persist
+- Clear your browser's cookies if issues persist
+- Check if your session has expired (24 hours after login)
 
 ### Can't access admin features after login
 - Check browser console for errors
-- Verify the token is stored: Open DevTools → Application → Local Storage → authToken
+- Verify the cookie is set: Open DevTools → Application → Cookies → authToken
 - Try refreshing the page
+- Ensure you haven't disabled cookies in your browser
 
 ## Important: No Default Password
 
@@ -188,15 +196,16 @@ This is optional as the client uses relative URLs by default.
 3. Server generates 32-byte random token using crypto.randomBytes()
 4. Token is hashed with bcrypt (10 salt rounds)
 5. Hashed token stored in memory with 24-hour expiration
-6. Unhashed token returned to client
-7. Client stores token in localStorage
+6. Unhashed token set as httpOnly cookie with 24-hour expiration
+7. Client automatically includes cookie in subsequent requests
 
 ### Token Verification Flow
-1. Client sends token as Bearer token in Authorization header
-2. Server iterates through stored hashed tokens
-3. Uses bcrypt.compare() to check if token matches any hash
-4. Verifies session hasn't expired
-5. Allows or denies request based on validation
+1. Browser automatically sends authToken cookie with each request
+2. Server reads token from cookie
+3. Server iterates through stored hashed tokens
+4. Uses bcrypt.compare() to check if token matches any hash
+5. Verifies session hasn't expired
+6. Allows or denies request based on validation
 
 ### Security Benefits
 - **Password never stored in token**: Only sent once during login
@@ -205,4 +214,7 @@ This is optional as the client uses relative URLs by default.
 - **Time-limited sessions**: Reduces risk of token theft
 - **Server-side invalidation**: Logout immediately revokes access
 - **Answer protection**: Quiz answers only visible to authenticated users
+- **httpOnly cookies**: Tokens inaccessible to JavaScript, preventing XSS attacks
+- **SameSite cookies**: CSRF protection through strict same-site policy
+- **Automatic expiration**: Frontend automatically detects expired sessions
 
