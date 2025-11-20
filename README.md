@@ -71,7 +71,7 @@ Quiz_app/
    
    **Note**: If you skip this step, the default password will be `admin123` (for testing only).
    
-   See [AUTHENTICATION.md](./AUTHENTICATION.md) for detailed authentication setup and usage.
+   See [AUTHENTICATION.md](docs/AUTHENTICATION.md) for detailed authentication setup and usage.
 
 ## Running the Application
 
@@ -167,7 +167,7 @@ Media files are stored in `server/uploads/`
 
 ## Authentication Documentation
 
-See [AUTHENTICATION.md](./AUTHENTICATION.md) for detailed information about:
+See [AUTHENTICATION.md](docs/AUTHENTICATION.md) for detailed information about:
 - Setting up authentication
 - How it works
 - Security considerations
