@@ -1,6 +1,6 @@
 {
   "name": "quiz-app-server",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "Quiz application backend server",
   "type": "module",
   "main": "dist/server.js",
