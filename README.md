@@ -158,12 +158,12 @@ The application has two access levels:
 
 ## Data Storage
 
-All data is stored in JSON files in the `server/data/` directory:
+All data is stored in JSON files in the `data/` directory:
 - `quizzes.json`: Quiz and question data
 - `players.json`: Player information
 - `results.json`: Quiz results and scores
 
-Media files are stored in `server/uploads/`
+Media files are stored in `uploads/`
 
 ## Authentication Documentation
 
@@ -213,7 +213,7 @@ npm run build
 
 **CORS issues**: The frontend is configured to proxy API requests to the backend. If you encounter CORS errors, ensure both servers are running.
 
-**File upload issues**: Ensure the `server/uploads/` directory exists and has write permissions.
+**File upload issues**: Ensure the `uploads/` directory exists and has write permissions.
 
 ## License
 
